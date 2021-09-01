@@ -4,7 +4,7 @@
  * @Author: William
  * @Date: 2021-06-13 13:34:48
  * @LastEditors: William
- * @LastEditTime: 2021-08-31 11:33:08
+ * @LastEditTime: 2021-09-01 14:40:07
  */
 #ifndef GHT_HPP_
 #define GHT_HPP_
@@ -40,7 +40,7 @@ class GHT
    // void overlay();
 public:
     
-    void detect(Mat Template_Image, Mat Testing_Image, int intervals);
+    void detect(Mat Template_Image, int intervals, vector<string> &filepaths);
 
     
 

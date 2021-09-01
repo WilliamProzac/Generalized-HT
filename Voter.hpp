@@ -30,7 +30,8 @@ public:
     Voter(long size);
     Mat vote(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals);
     Mat vote_SGHT(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals);
-    vector<Vec4i> vote_CGHT(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals);
+    vector<Vec4i> vote_CGHT(Mat EdgeImg, Rtable_typ rtable, int top, int right, int bottom, int left, int angle_min, int angle_max, int S_min, int S_max);
+    ~Voter();
 };
 
 

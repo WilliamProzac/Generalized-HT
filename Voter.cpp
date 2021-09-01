@@ -4,7 +4,7 @@
  * @Author: William
  * @Date: 2021-06-13 23:20:16
  * @LastEditors: William
- * @LastEditTime: 2021-07-18 19:07:42
+ * @LastEditTime: 2021-09-01 17:14:16
  */
 
 
@@ -22,7 +22,8 @@ void Voter::high_pass()
 
 Voter::Voter(long size)
 {
-    C_Vote_Space.resize(size);
+   // C_Vote_Space.resize(size);    
+    C_Vote_Space = vector<double>(size,0.0);
 }
 
 Mat Voter::vote(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals)
@@ -145,35 +146,39 @@ Mat Voter::vote_SGHT(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals)
     return origin;
 }
 
-vector<Vec4i> Voter::vote_CGHT(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int intervals)
+vector<Vec4i> Voter::vote_CGHT(Mat EdgeImg, Rtable_typ rtable, int top, int right, int bottom, int left, int angle_min, int angle_max, int S_min, int S_max)
 {
-    C_Vote_Space = vector<double>(EdgeImg.cols*EdgeImg.rows*360*16,0.0);
 
-    for(int i = 0; i < EdgeImg.cols; i++)
+
+    //C_Vote_Space = vector<double>((right - left + 1)*(bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1),0.0);
+
+    C_Vote_Space.resize((right - left + 1)*(bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1));
+
+    for(int i = left; i <= right; i++)
     {
-        for(int j = 0; j< EdgeImg.rows; j++)
+        for(int j = top; j <= bottom; j++)
         {
             if(EdgeImg.at<unsigned char>(j,i) == 255)
             {            
                 for(int k = 0; k < rtable.size(); k++)
-                 {
-                    
-                    
+                 {                    
                     for(int s = 0; s < rtable[k].size(); s++)
                     {
                         float phi = rtable[k][s](1);
                         float rho = rtable[k][s](0);
 
-                         for(int angle = 0; angle < 181; angle++)
+                         for(int angle = angle_min; angle <= angle_max; angle++)
                          {
-                            for(int S = 0; S<=10; S+=1)
+                            for(int S = S_min; S <= S_max; S+=1)
                             {
-                                int voteX = cvRound(i + rho * (S + 5) / 10.0 * cos((phi + angle - 90) * 3.1415926 / 180.0));
-                                int voteY = cvRound(j + rho * (S + 5) / 10.0 * sin((phi + angle - 90) * 3.1415926 / 180.0));
+                                int voteX = cvRound(i + rho * S  / 10.0 * cos((phi + angle - 90) * 3.1415926 / 180.0));
+                                int voteY = cvRound(j + rho * S  / 10.0 * sin((phi + angle - 90) * 3.1415926 / 180.0));
  
-                                 if((voteX >= 0) && (voteX < EdgeImg.cols) && (voteY >= 0) && (voteY < EdgeImg.rows))
+                                 if((voteX >= left) && (voteX < right+1) && (voteY >= top) && (voteY < bottom+1))
                                 {
-                                    C_Vote_Space[voteX * EdgeImg.rows * 360 * 16 + voteY * 360 * 16 + angle * 16 + S] ++;
+                                    C_Vote_Space[ (voteX - left)  * (bottom - top + 1) * (angle_max - angle_min + 1) * (S_max - S_min + 1) 
+                                                    + (voteY - top) *  (angle_max - angle_min + 1) * (S_max - S_min + 1)  
+                                                    + (angle-angle_min) * (S_max - S_min + 1)  + S - S_min] ++;
                                 }
                             }
                          }
@@ -185,23 +190,29 @@ vector<Vec4i> Voter::vote_CGHT(Mat EdgeImg, Mat gradImg, Rtable_typ rtable, int 
 
     cout<<"Finish voting"<<endl;
 
-    Vote_space::iterator maxPosition = max_element(C_Vote_Space.begin(), C_Vote_Space.end());
+    Vote_space::iterator maxPosition = max_element(C_Vote_Space.begin(), C_Vote_Space.end());       //仅实现了单个最高点的检测
     
     long distan = distance(C_Vote_Space.begin(),maxPosition);
 
-    int maxScale = ((distan % (EdgeImg.rows * 360 * 16)) % (360*16)) % 16;
-    int maxRotation = ((distan % (EdgeImg.rows * 360 * 16)) % (360*16) - maxScale) / 16;
-    int maxRows = (distan % (EdgeImg.rows * 360 * 16) - maxRotation * 16 - maxScale) / (360 * 16);
-    int maxCols = (distan - maxRows * 360 * 16 - maxRotation * 16 - maxScale) / (EdgeImg.rows * 360 * 16);
-    
-    
-    
+    C_Vote_Space.clear();
+    Vote_space().swap(C_Vote_Space);
 
+    int maxScale = ((distan % ((bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1))) % ((angle_max - angle_min + 1)*(S_max - S_min + 1))) % (S_max - S_min + 1);
+    int maxRotation = ((distan % ((bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1))) % ((angle_max - angle_min + 1)*(S_max - S_min + 1)) - maxScale) / (S_max - S_min + 1);
+    int maxRows = (distan % ((bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1)) - maxRotation * (S_max - S_min + 1) - maxScale) / ((angle_max - angle_min + 1)*(S_max - S_min + 1));
+    int maxCols = (distan - maxRows * (angle_max - angle_min + 1)*(S_max - S_min + 1) - maxRotation * (S_max - S_min + 1) - maxScale) / ((bottom - top + 1)*(angle_max - angle_min + 1)*(S_max - S_min + 1));
+    
     vector<Vec4i> result;
 
-    result.push_back(Vec4i(maxCols,maxRows,maxRotation,maxScale));
+    result.push_back(Vec4i(maxCols + left,maxRows + top,maxRotation + angle_min,maxScale + S_min));
 
     return result;
+
+}
+
+Voter::~Voter()
+{
+    //delete &C_Vote_Space;    
 
 }
 
